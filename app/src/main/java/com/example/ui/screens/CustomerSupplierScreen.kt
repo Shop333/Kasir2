@@ -170,7 +170,7 @@ fun CustomerSupplierScreen(
                                                 modifier = Modifier.background(MaterialTheme.colorScheme.errorContainer.copy(alpha=0.4f), RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp)
                                             )
                                         } else {
-                                            Text("Lunas / Bersih", fontSize = 11.sp, color = Color(0xFF2E7D32UL))
+                                            Text("Lunas / Bersih", fontSize = 11.sp, color = Color(0xFF2E7D32))
                                         }
                                     }
                                 }
@@ -230,7 +230,7 @@ fun CustomerSupplierScreen(
                                                 modifier = Modifier.background(MaterialTheme.colorScheme.errorContainer.copy(alpha=0.4f), RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp)
                                             )
                                         } else {
-                                            Text("Selesai / Lunas", fontSize = 11.sp, color = Color(0xFF2E7D32UL))
+                                            Text("Selesai / Lunas", fontSize = 11.sp, color = Color(0xFF2E7D32))
                                         }
                                     }
                                 }

@@ -34,6 +34,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -67,6 +71,7 @@ fun PosScreen(
     var showCustomerSelectDialog by remember { mutableStateOf(false) }
     var showDiscountItemDialog by remember { mutableStateOf<Product?>(null) }
     var showReceiptDialog by remember { mutableStateOf<Transaction?>(null) }
+    var showOpenShiftFromPosDialog by remember { mutableStateOf(false) }
     
     // Auto-lock checker hook
     LaunchedEffect(Unit) {
@@ -154,7 +159,14 @@ fun PosScreen(
                     Box(modifier = Modifier.weight(0.8f)) {
                         CartSection(
                             viewModel = viewModel,
-                            onCheckoutClick = { showCheckoutDialog = true },
+                            onCheckoutClick = {
+                                if (viewModel.activeShift == null) {
+                                    Toast.makeText(context, "Harap buka shift kerja kasir terlebih dahulu. Anda bisa membukanya langsung di sini!", Toast.LENGTH_SHORT).show()
+                                    showOpenShiftFromPosDialog = true
+                                } else {
+                                    showCheckoutDialog = true
+                                }
+                            },
                             onSelectCustomerClick = { showCustomerSelectDialog = true },
                             onEditItemDiscountClick = { showDiscountItemDialog = it }
                         )
@@ -193,7 +205,14 @@ fun PosScreen(
                         } else {
                             CartSection(
                                 viewModel = viewModel,
-                                onCheckoutClick = { showCheckoutDialog = true },
+                                onCheckoutClick = {
+                                    if (viewModel.activeShift == null) {
+                                        Toast.makeText(context, "Harap buka shift kerja kasir terlebih dahulu. Anda bisa membukanya langsung di sini!", Toast.LENGTH_SHORT).show()
+                                        showOpenShiftFromPosDialog = true
+                                    } else {
+                                        showCheckoutDialog = true
+                                    }
+                                },
                                 onSelectCustomerClick = { showCustomerSelectDialog = true },
                                 onEditItemDiscountClick = { showDiscountItemDialog = it }
                             )
@@ -246,6 +265,64 @@ fun PosScreen(
             viewModel = viewModel,
             onDismiss = { showReceiptDialog = null }
         )
+    }
+
+    if (showOpenShiftFromPosDialog) {
+        var modalText by remember { mutableStateOf("200000") }
+        Dialog(onDismissRequest = { showOpenShiftFromPosDialog = false }) {
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text(
+                        text = "Buka Shift Kasir Baru",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Tentukan saldo laci modal awal fisik untuk mulai melayani transaksi cash/pembayaran.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    OutlinedTextField(
+                        value = modalText,
+                        onValueChange = { modalText = it },
+                        label = { Text("Jumlah Modal Tunai Awal (Rp)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().testTag("pos_modal_awal_input")
+                    )
+
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(onClick = { showOpenShiftFromPosDialog = false }) {
+                            Text("Batal")
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                val value = modalText.toDoubleOrNull() ?: 200000.0
+                                viewModel.openShift(value)
+                                showOpenShiftFromPosDialog = false
+                                showCheckoutDialog = true
+                            },
+                            modifier = Modifier.testTag("pos_confirm_open_shift_btn")
+                        ) {
+                            Text("Buka Laci & Mulai Bayar")
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -712,9 +789,7 @@ fun CartSection(
 
                 Button(
                     onClick = {
-                        if (viewModel.activeShift == null) {
-                            Toast.makeText(context, "Buka shift kasir terlebih dahulu di menu Shift!", Toast.LENGTH_LONG).show()
-                        } else if (items.isNotEmpty()) {
+                        if (items.isNotEmpty()) {
                             onCheckoutClick()
                         }
                     },
@@ -864,6 +939,7 @@ fun PaymentCheckoutDialog(
     onComplete: (Transaction) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val summary = viewModel.getCartSummary()
     var paymentMethod by remember { mutableStateOf("TUNAI") } // TUNAI, QRIS, BANK_TRANSFER, DEBIT_KREDIT
     var cashPaidText by remember { mutableStateOf("") }
@@ -872,7 +948,14 @@ fun PaymentCheckoutDialog(
     var customerNotes by remember { mutableStateOf("") }
     var isDebtPayment by remember { mutableStateOf(false) } // piutang
     
-    val totalToPay = (summary.totalAmount - viewModel.activeVoucherDiscount).coerceAtLeast(0.0)
+    val totalToPay = summary.totalAmount
+    val cashNum = remember(cashPaidText) {
+        cashPaidText.replace(Regex("[^0-9]"), "").toDoubleOrNull() ?: 0.0
+    }
+    
+    LaunchedEffect(totalToPay) {
+        cashPaidText = totalToPay.toInt().toString()
+    }
     
     Dialog(
         onDismissRequest = onDismiss,
@@ -1016,53 +1099,101 @@ fun PaymentCheckoutDialog(
                                 modifier = Modifier.padding(vertical = 12.dp)
                             )
                         } else if (paymentMethod == "TUNAI") {
-                            // Quick Cash suggestion pills
-                            Text("Pilihan Uang Cepat:", fontSize = 11.sp, modifier = Modifier.padding(bottom = 6.dp))
-                            val sug = listOf(
-                                totalToPay.toInt(),
-                                5000 * ((totalToPay.toInt() + 4999) / 5000), // round up to nearest 5k
-                                10000 * ((totalToPay.toInt() + 9999) / 10000), // round to 10k
-                                50000,
-                                100000
-                            ).distinct().filter { it >= totalToPay.toInt() }.take(4)
+                            val exact = totalToPay.toInt()
                             
-                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(bottom = 8.dp)) {
-                                sug.forEach { amt ->
-                                    Box(
-                                        modifier = Modifier
-                                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
-                                            .clickable { cashPaidText = amt.toString() }
-                                            .padding(horizontal = 8.dp, vertical = 6.dp)
-                                    ) {
-                                        Text("Rp${String.format("%,.0f", amt.toDouble())}", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-                            }
-
+                            // 1. Text Field for "Uang Diterima"
                             OutlinedTextField(
                                 value = cashPaidText,
-                                onValueChange = { cashPaidText = it },
-                                label = { Text("Uang Tunai Diterima (Rp)") },
+                                onValueChange = { input ->
+                                    val clean = input.replace(Regex("[^0-9]"), "")
+                                    val withoutLeading = clean.dropWhile { it == '0' }
+                                    cashPaidText = if (withoutLeading.isEmpty() && clean.isNotEmpty()) "0" else withoutLeading
+                                },
+                                label = { Text("Uang Diterima (Rp)", fontWeight = FontWeight.Bold) },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                visualTransformation = RupiahVisualTransformation(),
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth().testTag("cash_payment_input")
                             )
 
-                            // Show Change (Kembalian)
-                            val cashNum = cashPaidText.toDoubleOrNull() ?: 0.0
-                            val changeValue = (cashNum - totalToPay).coerceAtLeast(0.0)
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)),
-                                modifier = Modifier.fillMaxWidth().padding(top = 10.dp)
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // 2. Choice Buttons Row
+                            Text("Pilihan Uang Cepat:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                Column(modifier = Modifier.padding(10.dp)) {
-                                    Text("Kembalian Otomatis:", fontSize = 10.sp)
-                                    Text(
-                                        text = "Rp${String.format("%,.0f", changeValue)}",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 16.sp,
-                                        color = if (changeValue > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                                    )
+                                listOf(50000, 100000, 200000).forEach { amount ->
+                                    Button(
+                                        onClick = { cashPaidText = amount.toString() },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = if (cashPaidText == amount.toString()) {
+                                                MaterialTheme.colorScheme.primary
+                                            } else {
+                                                MaterialTheme.colorScheme.secondaryContainer
+                                            },
+                                            contentColor = if (cashPaidText == amount.toString()) {
+                                                MaterialTheme.colorScheme.onPrimary
+                                            } else {
+                                                MaterialTheme.colorScheme.onSecondaryContainer
+                                            }
+                                        ),
+                                        modifier = Modifier.weight(1f).height(40.dp),
+                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 2.dp)
+                                    ) {
+                                        Text("Rp${String.format("%,.0f", amount.toDouble())}", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                                Button(
+                                    onClick = { cashPaidText = exact.toString() },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (cashPaidText == exact.toString()) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.tertiaryContainer
+                                        },
+                                        contentColor = if (cashPaidText == exact.toString()) {
+                                            MaterialTheme.colorScheme.onPrimary
+                                        } else {
+                                            MaterialTheme.colorScheme.onTertiaryContainer
+                                        }
+                                    ),
+                                    modifier = Modifier.weight(1f).height(40.dp),
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 2.dp)
+                                ) {
+                                    Text("Uang Pas", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            // 3. Success / Warning Message
+                            if (cashNum < totalToPay) {
+                                val deficit = totalToPay - cashNum
+                                Text(
+                                    text = "Uang kurang Rp${String.format("%,.0f", deficit)}",
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(top = 4.dp).testTag("payment_deficit_text")
+                                )
+                            } else {
+                                val changeValue = cashNum - totalToPay
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFFE8F5E9)),
+                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Text("Kembalian:", fontSize = 11.sp, color = androidx.compose.ui.graphics.Color(0xFF2E7D32))
+                                        Text(
+                                            text = "Rp${String.format("%,.0f", changeValue)}",
+                                            fontWeight = FontWeight.ExtraBold,
+                                            fontSize = 18.sp,
+                                            color = androidx.compose.ui.graphics.Color(0xFF2E7D32)
+                                        )
+                                    }
                                 }
                             }
                         } else if (paymentMethod == "QRIS") {
@@ -1107,27 +1238,68 @@ fun PaymentCheckoutDialog(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = onDismiss) { Text("Batal") }
-                    Spacer(modifier = Modifier.width(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(0.35f).height(46.dp)
+                    ) {
+                        Text("Batal")
+                    }
+                    val isPayEnabled = if (paymentMethod == "TUNAI" && !isDebtPayment) {
+                        cashNum >= totalToPay
+                    } else {
+                        true
+                    }
+
                     Button(
                         onClick = {
-                            val paidVal = if (isDebtPayment) 0.0 else if (paymentMethod == "TUNAI") cashPaidText.toDoubleOrNull() ?: 0.0 else totalToPay
+                            val paidVal = if (isDebtPayment) 0.0 else if (paymentMethod == "TUNAI") cashNum else totalToPay
                             viewModel.executeCheckout(
                                 paymentMethod = paymentMethod,
                                 paidAmount = paidVal,
                                 isDebt = isDebtPayment,
                                 onSuccess = { tx -> onComplete(tx) },
                                 onFailure = { err -> 
-                                    // Display failure
+                                    Toast.makeText(context, err, Toast.LENGTH_LONG).show()
                                 }
                             )
                         },
-                        modifier = Modifier.height(44.dp).testTag("confirm_print_and_checkout_btn")
+                        enabled = isPayEnabled,
+                        colors = if (paymentMethod == "TUNAI") {
+                            ButtonDefaults.buttonColors(
+                                containerColor = androidx.compose.ui.graphics.Color(0xFF2E7D32),
+                                contentColor = androidx.compose.ui.graphics.Color.White,
+                                disabledContainerColor = androidx.compose.ui.graphics.Color.LightGray,
+                                disabledContentColor = androidx.compose.ui.graphics.Color.DarkGray
+                            )
+                        } else {
+                            ButtonDefaults.buttonColors()
+                        },
+                        modifier = Modifier
+                            .weight(0.65f)
+                            .height(46.dp)
+                            .testTag("confirm_print_and_checkout_btn")
                     ) {
-                        Icon(Icons.Default.Check, "Confirm")
+                        Icon(
+                            imageVector = if (paymentMethod == "TUNAI") Icons.Default.Payments else Icons.Default.Check,
+                            contentDescription = "Confirm"
+                        )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Konfirmasi Selesai & Cetak", fontWeight = FontWeight.Bold)
+                        Text(
+                            text = when {
+                                isDebtPayment -> "Catat Piutang & Simpan"
+                                paymentMethod == "TUNAI" -> "BAYAR"
+                                paymentMethod == "QRIS" -> "Bayar QRIS & Simpan"
+                                paymentMethod == "BANK_TRANSFER" -> "Bayar Transfer & Simpan"
+                                else -> "Bayar Kartu & Simpan"
+                            },
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
                     }
                 }
             }
@@ -1258,3 +1430,66 @@ fun ReceiptPreviewDialog(
 
 // Small utilities to prevent compiler errors
 
+fun formatRupiah(valueStr: String): String {
+    val clean = valueStr.replace(Regex("[^0-9]"), "")
+    if (clean.isEmpty()) return ""
+    val parsed = clean.toDoubleOrNull() ?: return ""
+    val symbols = java.text.DecimalFormatSymbols(java.util.Locale("in", "ID")).apply {
+        groupingSeparator = '.'
+    }
+    val formatter = java.text.DecimalFormat("#,###", symbols)
+    return formatter.format(parsed)
+}
+
+class RupiahVisualTransformation : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        val originalText = text.text
+        if (originalText.isEmpty()) {
+            return TransformedText(text, OffsetMapping.Identity)
+        }
+
+        val formattedResult = formatRupiah(originalText)
+
+        // Built-in fail-safe mapping
+        val originalToTransformedMap = IntArray(originalText.length + 1)
+        val transformedToOriginalMap = IntArray(formattedResult.length + 1)
+
+        var origOffset = 0
+        var transOffset = 0
+
+        while (origOffset < originalText.length && transOffset < formattedResult.length) {
+            originalToTransformedMap[origOffset] = transOffset
+            transformedToOriginalMap[transOffset] = origOffset
+
+            if (originalText[origOffset] == formattedResult[transOffset]) {
+                origOffset++
+                transOffset++
+            } else {
+                transOffset++
+            }
+        }
+
+        while (origOffset <= originalText.length) {
+            originalToTransformedMap[origOffset] = transOffset
+            origOffset++
+        }
+        while (transOffset <= formattedResult.length) {
+            transformedToOriginalMap[transOffset] = originalText.length
+            transOffset++
+        }
+
+        val offsetMapping = object : OffsetMapping {
+            override fun originalToTransformed(offset: Int): Int {
+                val clamped = offset.coerceIn(0, originalText.length)
+                return originalToTransformedMap[clamped]
+            }
+
+            override fun transformedToOriginal(offset: Int): Int {
+                val clamped = offset.coerceIn(0, formattedResult.length)
+                return transformedToOriginalMap[clamped]
+            }
+        }
+
+        return TransformedText(AnnotatedString(formattedResult), offsetMapping)
+    }
+}

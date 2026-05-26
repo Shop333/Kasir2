@@ -340,21 +340,21 @@ fun DashboardSection(
                         val donutWidth = 24f
                         // Slices of products mockup: Sembako (50%), Minuman (30%), Makanan (20%)
                         drawArc(
-                            color = Color(0xFF4CAF50UL),
+                            color = Color(0xFF4CAF50),
                             startAngle = 0f,
                             sweepAngle = 180f,
                             useCenter = false,
                             style = Stroke(width = donutWidth)
                         )
                         drawArc(
-                            color = Color(0xFF2196F3UL),
+                            color = Color(0xFF2196F3),
                             startAngle = 180f,
                             sweepAngle = 108f,
                             useCenter = false,
                             style = Stroke(width = donutWidth)
                         )
                         drawArc(
-                            color = Color(0xFFFF9800UL),
+                            color = Color(0xFFFF9800),
                             startAngle = 288f,
                             sweepAngle = 72f,
                             useCenter = false,
@@ -368,9 +368,9 @@ fun DashboardSection(
 
                 // Legend
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    LegendItem(color = Color(0xFF4CAF50UL), text = "Sembako (50% Omzet)")
-                    LegendItem(color = Color(0xFF2196F3UL), text = "Minuman Dingin (30%)")
-                    LegendItem(color = Color(0xFFFF9800UL), text = "Roti & Snack (20%)")
+                    LegendItem(color = Color(0xFF4CAF50), text = "Sembako (50% Omzet)")
+                    LegendItem(color = Color(0xFF2196F3), text = "Minuman Dingin (30%)")
+                    LegendItem(color = Color(0xFFFF9800), text = "Roti & Snack (20%)")
                 }
             }
         }
@@ -395,11 +395,11 @@ fun DashboardSection(
             hours.forEachIndexed { index, hour ->
                 val density = densities[index]
                 val color = when (density) {
-                    5 -> Color(0xFF1B5E20UL)
-                    4 -> Color(0xFF2E7D32UL)
-                    3 -> Color(0xFF4CAF50UL)
-                    2 -> Color(0xFF81C784UL)
-                    else -> Color(0xFFC8E6C9UL)
+                    5 -> Color(0xFF1B5E20)
+                    4 -> Color(0xFF2E7D32)
+                    3 -> Color(0xFF4CAF50)
+                    2 -> Color(0xFF81C784)
+                    else -> Color(0xFFC8E6C9)
                 }
                 
                 Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {

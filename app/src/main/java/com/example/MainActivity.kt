@@ -286,8 +286,8 @@ fun DashboardHub(
                     Card(
                         onClick = {
                             // Verify permission level for ADMIN ONLY tasks
-                            if (item.route == ScreenRoute.REPORTS && user.role != "Admin" && user.role != "Supervisor") {
-                                Toast.makeText(context, "Akses Laporan khusus untuk level Admin / Supervisor!", Toast.LENGTH_SHORT).show()
+                            if (item.route == ScreenRoute.REPORTS && user.role != "Admin" && user.role != "Supervisor" && user.role != "Kasir") {
+                                Toast.makeText(context, "Akses Laporan khusus untuk level Admin / Supervisor / Kasir!", Toast.LENGTH_SHORT).show()
                             } else if (item.route == ScreenRoute.SETTINGS && user.role != "Admin") {
                                 Toast.makeText(context, "Akses Pengaturan khusus untuk level Admin!", Toast.LENGTH_SHORT).show()
                             } else {

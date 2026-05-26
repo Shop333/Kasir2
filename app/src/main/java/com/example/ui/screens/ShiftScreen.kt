@@ -67,8 +67,8 @@ fun ShiftScreen(
                 actions = {
                     // Shift active symbol indicator
                     val statusText = if (activeShift != null) "Kas Terbuka" else "Kas Tutup"
-                    val colorContainer = if (activeShift != null) Color(0xFFE8F5E9UL) else Color(0xFFFFEBEEUL)
-                    val contentColorText = if (activeShift != null) Color(0xFF2E7D32UL) else Color(0xFFC62828UL)
+                    val colorContainer = if (activeShift != null) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
+                    val contentColorText = if (activeShift != null) Color(0xFF2E7D32) else Color(0xFFC62828)
                     Text(
                         text = statusText,
                         fontSize = 11.sp,
@@ -226,7 +226,7 @@ fun ShiftScreen(
                                             Text("Shift #${s.id} - ${s.userName}", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                             Text(
                                                 text = if (s.cashDifference >= 0) "Cocok/Lebih" else "Defisit Kas",
-                                                color = if (s.cashDifference == 0.0) Color(0xFF2E7D32UL) else if (s.cashDifference > 0) Color.Blue else Color.Red,
+                                                color = if (s.cashDifference == 0.0) Color(0xFF2E7D32) else if (s.cashDifference > 0) Color.Blue else Color.Red,
                                                 fontSize = 10.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
@@ -274,7 +274,7 @@ fun ShiftScreen(
                                         Card(
                                             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                             colors = CardDefaults.cardColors(
-                                                containerColor = if (pc.type == "IN") Color(0xFFE8F5E9UL) else Color(0xFFFFEBEEUL)
+                                                containerColor = if (pc.type == "IN") Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
                                             )
                                         ) {
                                             Row(
@@ -288,7 +288,7 @@ fun ShiftScreen(
                                                     Text("Waktu: $pt | Shift: #${pc.id}", fontSize = 10.sp, color = Color.Gray)
                                                 }
                                                 val prefix = if (pc.type == "IN") "+Rp" else "-Rp"
-                                                val txtColor = if (pc.type == "IN") Color(0xFF2E7D32UL) else Color(0xFFC62828UL)
+                                                val txtColor = if (pc.type == "IN") Color(0xFF2E7D32) else Color(0xFFC62828)
                                                 Text(
                                                     text = "$prefix${String.format("%,.0f", pc.amount)}",
                                                     fontWeight = FontWeight.Bold,
