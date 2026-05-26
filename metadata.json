@@ -1,0 +1,6 @@
+{
+  "name": "Kasir POS",
+  "description": "Aplikasi Kasir / Point of Sale (POS) lengkap, modern, offline-first dengan manajemen produk, shift kas, cetak struk, dan laporan keuangan",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
